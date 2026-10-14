@@ -1,0 +1,65 @@
+# Entorno: Python 3.13.16, pycryptodome 3.24.1, Linux
+# Instalación limpia desde cero siguiendo el README
+
+$ python src/chacha20_tool.py
+======================================================================
+PARTE 1 - Cifrado
+======================================================================
+Texto plano            : Este es un mensaje secreto que quiero cifrar
+Tamano del nonce       : 8 bytes (64 bits)
+Texto cifrado (bytes)  : b'Ehq0\x83\xcb\x8fo\xab\xed\xd0S\x06\xcc\xbb\xecw\xe9\xec(\x1f\xc5E\xdb\x88\x18`W\xc3yQn\xad3\xec.\x08\x92\x9f\x92\xb8w\x8a\r'
+Texto cifrado (hex)    : 4568713083cb8f6fabedd05306ccbbec77e9ec281fc545db88186057c379516ead33ec2e08929f92b8778a0d
+Verificacion ida/vuelta: OK
+
+======================================================================
+PARTE 2 - Descifrado
+======================================================================
+Texto plano resultante : Este es un mensaje secreto que quiero que descifres
+
+======================================================================
+EXTRA - Sincronizacion del keystream (seek)
+======================================================================
+Sin seek (desincronizado): b'\xad\xf9\x9f\x0e\xe0dU\xe2\xb0zZ\x17p`\x90\x13\x94\x95\xac\x18\xbe\xc8)\xd3\x04H\xa7Z\xbd\xcf\xad\x90t>\x0cP\xdfq\xdb\xe1\xcc;'
+Con seek(8)  (sincronizado): saje ha sufrido un error en la transmision
+Nota: los 8 primeros caracteres se han perdido y no son recuperables.
+
+$ python src/diffie_hellman_xor.py
+======================================================================
+RA2 - Diffie-Hellman + XOR
+======================================================================
+Parametros publicos : p = MODP 2048 bits (RFC 3526), g = 2
+Publica de Alice (A): 0xbec6bc5b4db189444f2f72c5450cfe0d...
+Publica de Bob   (B): 0x7448dbce09c0686137f3291dae1cba7d...
+Secreto Alice == secreto Bob: True
+Mensaje             : Este es un mensaje secreto que quiero cifrar
+Cifrado XOR (hex)   : a912aa262f0f979220bf87e8bb2640651d05ffe2f92db2dee9117eb525def9ae0b5f467823e7586988e43740
+Descifrado por Bob  : Este es un mensaje secreto que quiero cifrar
+Verificacion        : OK
+
+Nota: los valores cambian en cada ejecucion (claves privadas aleatorias).
+
+$ python src/demo_reutilizacion_nonce.py
+Bytes iniciales identicos en C1 y C2: 38
+-> Un observador ya sabe que ambos mensajes empiezan igual.
+
+P2 recuperado SIN la clave: Este es un mensaje secreto que quiero que de
+(limitado a 44 bytes, la longitud del texto plano conocido)
+
+$ python -m unittest discover -s tests -v
+test_clave_invalida (test_chacha20.TestChaCha20.test_clave_invalida) ... ok
+test_extra_seek (test_chacha20.TestChaCha20.test_extra_seek) ... ok
+test_extra_sin_seek_falla (test_chacha20.TestChaCha20.test_extra_sin_seek_falla) ... ok
+test_ida_y_vuelta (test_chacha20.TestChaCha20.test_ida_y_vuelta) ... ok
+test_nonce_invalido (test_chacha20.TestChaCha20.test_nonce_invalido) ... ok
+test_parte1_coincide_con_referencia (test_chacha20.TestChaCha20.test_parte1_coincide_con_referencia) ... ok
+test_parte2 (test_chacha20.TestChaCha20.test_parte2) ... ok
+test_ambas_partes_obtienen_el_mismo_secreto (test_diffie_hellman.TestDiffieHellman.test_ambas_partes_obtienen_el_mismo_secreto) ... ok
+test_cifrar_y_descifrar_xor (test_diffie_hellman.TestDiffieHellman.test_cifrar_y_descifrar_xor) ... ok
+test_rechaza_publica_trivial (test_diffie_hellman.TestDiffieHellman.test_rechaza_publica_trivial) ... ok
+test_secreto_distinto_en_cada_intercambio (test_diffie_hellman.TestDiffieHellman.test_secreto_distinto_en_cada_intercambio) ... ok
+
+----------------------------------------------------------------------
+Ran 11 tests in 0.290s
+
+OK
+
