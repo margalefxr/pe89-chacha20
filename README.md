@@ -1,14 +1,14 @@
-# Informe PE 89.1 — Cifrado con ChaCha20
+# PE 89.1 — Cifrado con ChaCha20
 
-**Autor:** Xavier Margalef Riestra · **Módulo:** MF0489 Semana 2 · **Fecha:** 14/10/2026 · **Estado:** ✅ Completado (11/11 pruebas OK)
+**Autor:** Xavier Margalef Riestra · **Módulo:** MF0489 Semana 2 · **Fecha:** 14/10/2026 · **Estado:** completado, 11/11 pruebas OK
 
-## 1. Resumen ejecutivo
+## 1. Resumen
 
-Se ha implementado el cifrado y el descifrado con **ChaCha20** (Python + PyCryptodome), se ha recuperado un mensaje dañado en la transmisión y se ha añadido el intercambio de claves **Diffie-Hellman** del RA2. El cifrado coincide byte a byte con la referencia del enunciado y el resto de resultados se validan con pruebas automáticas.
+He implementado el cifrado y el descifrado con **ChaCha20** en Python usando PyCryptodome, he recuperado el mensaje que llega con 8 bytes perdidos y he añadido el intercambio **Diffie-Hellman** que pide el RA2. El cifrado de la Parte 1 coincide byte a byte con la referencia del enunciado. El resto lo valido con pruebas automáticas.
 
-**Hallazgo principal:** el enunciado cifra dos mensajes con **la misma clave y el mismo nonce**. Se ha demostrado que eso permite leer el segundo mensaje **sin conocer la clave**. El algoritmo no falla; falla la **gestión** del nonce. Es el mismo error que rompió WEP y que explotó KRACK en WPA2.
+**Lo más importante que he encontrado:** el enunciado cifra los mensajes de la Parte 1 y la Parte 2 con la misma clave y el mismo nonce. Con eso se puede leer el segundo mensaje sin tener la clave, y lo he demostrado con un script. El fallo no está en ChaCha20, está en cómo se gestiona el nonce. Es el mismo tipo de error que tumbó WEP y que aprovechaba KRACK en WPA2.
 
-**Dónde se cumple cada criterio de la rúbrica:**
+**Dónde está cada criterio de la rúbrica:**
 
 | Criterio | Pts | Dónde | Prueba / evidencia |
 |---|---|---|---|
@@ -28,48 +28,48 @@ Se ha implementado el cifrado y el descifrado con **ChaCha20** (Python + PyCrypt
 | **P1 – Texto cifrado** (hex) | `4568713083cb8f6fabedd05306ccbbec77e9ec281fc545db88186057c379516ead33ec2e08929f92b8778a0d` |
 | **P2 – Texto descifrado** | `Este es un mensaje secreto que quiero que descifres` |
 | **Extra – Recuperado con `seek(8)`** | `saje ha sufrido un error en la transmision` (los 8 bytes perdidos, "Este men", no se pueden recuperar) |
-| **RA2 – Diffie-Hellman + XOR** | Ambas partes obtienen la misma clave; el mensaje se cifra y descifra correctamente |
+| **RA2 – Diffie-Hellman + XOR** | Las dos partes llegan a la misma clave y el mensaje se cifra y descifra bien |
 
 ## 3. Respuestas a la actividad
 
-**¿Qué tamaño tiene el nonce?** **8 bytes (64 bits)**, la versión original de ChaCha20. Su función es que una misma clave genere un flujo de cifrado (keystream) distinto en cada mensaje. Es público, pero **no debe repetirse nunca** con la misma clave.
+**¿Qué tamaño tiene el nonce?** 8 bytes (64 bits), que es la versión original de ChaCha20. El nonce sirve para que la misma clave genere un keystream distinto en cada mensaje. No es secreto, pero no se puede repetir nunca con la misma clave.
 
-**¿Se puede usar uno mayor?** **12 bytes: sí** (estándar RFC 8439, el que usa TLS 1.3). **16 bytes: no**; la librería lo rechaza, comprobado. **24 bytes: sí** (XChaCha20).
+**¿Se puede usar uno más grande?** De 12 bytes sí, es el estándar RFC 8439 que usa TLS 1.3. De 16 bytes no, la librería lo rechaza (lo he probado). De 24 bytes también, con XChaCha20.
 
-**¿Qué implica un nonce mayor?** No hace el cifrado más fuerte (eso lo da la clave de 256 bits): **reduce el riesgo de repetir nonce**.
-- Con 8 bytes generados al azar, la probabilidad de repetición llega al 50 % hacia unos 4.000 millones de mensajes, así que exige un contador.
-- Con 12 bytes aleatorios, el límite recomendado (NIST) es de unos 4.000 millones de mensajes por clave; además, cada mensaje no puede superar 256 GiB.
-- Con 24 bytes se puede usar un nonce aleatorio sin preocuparse.
+**¿Qué implica un nonce más grande?** El cifrado no es más fuerte por eso, la fuerza la da la clave de 256 bits. Lo que baja es el riesgo de repetir nonce:
+- Con 8 bytes generados al azar, hacia los 4.000 millones de mensajes ya hay un 50 % de probabilidad de repetir uno. Por eso con 8 bytes hay que usar un contador.
+- Con 12 bytes al azar, NIST recomienda no pasar de unos 4.000 millones de mensajes por clave. Además, cada mensaje tiene un máximo de 256 GiB.
+- Con 24 bytes se puede generar el nonce al azar sin preocuparse.
 
-**¿Riesgo de reutilizar clave y nonce?** Se genera el mismo keystream. Por eso `C1 ⊕ C2 = P1 ⊕ P2` y la clave desaparece de la ecuación: quien conozca o adivine un mensaje lee el otro, y los bytes iguales en ambos mensajes se ven a simple vista en los cifrados. Con Poly1305, repetir nonce permitiría además falsificar mensajes. **Demostrado con los datos del enunciado** (`src/demo_reutilizacion_nonce.py`).
+**¿Qué pasa si se reutilizan clave y nonce?** Se genera el mismo keystream, así que `C1 ⊕ C2 = P1 ⊕ P2` y la clave desaparece de la ecuación. Si alguien conoce o adivina uno de los mensajes, puede leer el otro. Además, las partes iguales de los dos mensajes se ven a simple vista en los cifrados. Si se usara Poly1305, repetir nonce permitiría incluso falsificar mensajes. Lo demuestro con los datos del enunciado en `src/demo_reutilizacion_nonce.py`.
 
-**¿ChaCha20 frente a ChaCha20-Poly1305?** ChaCha20 solo da **confidencialidad**: si alguien altera el mensaje, se descifra basura sin avisar. ChaCha20-Poly1305 añade una etiqueta (tag) que garantiza **integridad y autenticidad** y rechaza cualquier mensaje modificado. Es la versión que usan TLS 1.3, SSH y WireGuard.
+**¿ChaCha20 o ChaCha20-Poly1305?** ChaCha20 solo da confidencialidad: si alguien toca el cifrado, al descifrar sale basura y nadie se entera. ChaCha20-Poly1305 añade una etiqueta (tag) que da integridad y autenticidad, y si el mensaje se ha modificado lo rechaza. Es la versión que se usa de verdad en TLS 1.3, SSH y WireGuard.
 
-**¿Cómo se resincroniza el keystream (extra)?** El receptor empezaba a descifrar con el byte 0 del keystream, pero el primer byte recibido correspondía al byte 8. `seek(8)` adelanta el keystream exactamente esos 8 bytes y vuelve a alinearlo con el emisor. Se eligió `seek()` frente a "descifrar 8 bytes de relleno y descartarlos" porque es el método diseñado para ello y deja clara la intención (ADR-0003).
+**¿Cómo se resincroniza el keystream? (extra)** El receptor empieza a descifrar desde el byte 0 del keystream, pero lo primero que le llega es el byte 8. Con `seek(8)` adelanto el keystream esos 8 bytes y vuelve a cuadrar con el emisor. Podría haber descifrado 8 bytes de relleno y tirarlos, pero `seek()` es el método pensado para esto y se entiende mejor qué estás haciendo (ADR-0003).
 
 ## 4. Riesgos y recomendaciones
 
 | Riesgo | Impacto | Recomendación |
 |---|---|---|
-| Reutilizar el nonce (presente en el enunciado) | 🔴 Alto: se lee el mensaje sin la clave | Nonce único por mensaje; XChaCha20 con nonce aleatorio de 24 bytes |
-| Cifrar sin integridad | 🔴 Alto: manipulación sin detectar | Usar siempre ChaCha20-Poly1305 (AEAD) |
-| Clave escrita en el código (aquí es un dato público del enunciado) | 🟠 Medio | En producción: gestor de secretos y rotación de claves |
-| **Cadena de suministro**: librería de terceros | 🟠 Medio | Versión fijada en `requirements.txt`; evitar `pycrypto` (abandonada, con CVE) y paquetes con nombre parecido (typosquatting) |
-| Diffie-Hellman sin autenticar | 🟠 Medio: man-in-the-middle | Firmar el intercambio: certificados en TLS, claves de host en SSH (las Ed25519 de OpsMatrix cumplen esa función) |
+| Reutilizar el nonce (pasa en el enunciado) | Alto: se lee el mensaje sin la clave | Un nonce único por mensaje, o XChaCha20 con nonce aleatorio de 24 bytes |
+| Cifrar sin integridad | Alto: se puede manipular sin que se note | Usar siempre ChaCha20-Poly1305 (AEAD) |
+| Clave escrita en el código (aquí es un dato público del enunciado) | Medio | En producción, gestor de secretos y rotación de claves |
+| **Cadena de suministro:** dependo de una librería de terceros | Medio | Versión fijada en `requirements.txt`. Ojo con `pycrypto` (abandonada y con CVE) y con paquetes de nombre parecido (typosquatting) |
+| Diffie-Hellman sin autenticar | Medio: man-in-the-middle | Firmar el intercambio: certificados en TLS y claves de host en SSH (en OpsMatrix, las Ed25519) |
 
-## 5. Visión de conjunto
+## 5. Cómo encaja todo
 
-La práctica reproduce, en pequeño, **un canal seguro real**: Diffie-Hellman acuerda la clave, ChaCha20 cifra con ella y Poly1305 garantizaría que nadie la manipule. Es el mismo esquema que usan el Nginx (TLS 1.3) y el OpenSSH de mi proyecto **OpsMatrix Lab**: intercambio ECDHE autenticado y cifrado AEAD, que puede ser ChaCha20-Poly1305 o AES-GCM según lo que negocie el cliente.
+Esta práctica es, a escala, un canal seguro de verdad: Diffie-Hellman acuerda la clave, ChaCha20 cifra con ella y Poly1305 se encargaría de que nadie la manipule. Es el mismo esquema que usan el Nginx (TLS 1.3) y el OpenSSH de mi proyecto **OpsMatrix Lab**: intercambio ECDHE autenticado y cifrado AEAD, que puede ser ChaCha20-Poly1305 o AES-GCM según lo que negocie el cliente.
 
-La lección para la dirección es que **la criptografía rara vez falla por el algoritmo; falla por cómo se gestiona**: nonces, claves y dependencias de terceros. Por eso las normas lo tratan como un control de gestión y no solo técnico:
+La conclusión que saco es que la criptografía casi nunca falla por el algoritmo. Falla por cómo se gestionan los nonces, las claves y las dependencias de terceros. Por eso las normas lo tratan como un tema de gestión y no solo técnico:
 - **ISO 27001**: A.8.24 (criptografía) y A.5.21 (cadena de suministro).
 - **ENS**: mp.com.2 (confidencialidad) y mp.com.3 (integridad).
 - **NIST SP 800-57**: gestión de claves.
 - **RGPD**, art. 32.
 
-## 6. Cómo verificarlo
+## 6. Cómo comprobarlo
 
-Requiere Python 3.10 o superior. Todos los comandos se lanzan desde la raíz del repositorio.
+Hace falta Python 3.10 o superior. Todos los comandos se lanzan desde la raíz del repo.
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate   # Windows: python -m venv .venv  y  .\.venv\Scripts\Activate.ps1
@@ -80,8 +80,8 @@ python src/demo_reutilizacion_nonce.py   # demostración del riesgo
 python -m unittest discover -s tests -v  # 11 pruebas
 ```
 
-**Documentación de soporte:**
-- [`docs/ANALISIS_TECNICO.md`](docs/ANALISIS_TECNICO.md): desarrollo completo de cada respuesta.
-- [`docs/adr/`](docs/adr/): 4 decisiones justificadas, del tipo "por qué A y no B".
-- [`docs/WORKLOG.md`](docs/WORKLOG.md): pasos seguidos y 12 dificultades resueltas.
-- [`docs/evidencias/`](docs/evidencias/): salida real de la ejecución.
+**Documentación de apoyo:**
+- [`docs/ANALISIS_TECNICO.md`](docs/ANALISIS_TECNICO.md): cada respuesta desarrollada a fondo.
+- [`docs/adr/`](docs/adr/): las 4 decisiones de diseño, con el porqué de cada una frente a las alternativas.
+- [`docs/WORKLOG.md`](docs/WORKLOG.md): los pasos que he seguido y las 12 dificultades que me he encontrado.
+- [`docs/evidencias/`](docs/evidencias/): la salida real de la ejecución.
