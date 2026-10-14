@@ -37,6 +37,19 @@
 | 7. Sincronización del keystream | 1,00 | §7 | `descifrar_desde()` · `test_extra_seek` |
 | **TOTAL** | **10,00** | | |
 
+**Preguntas de la actividad:**
+
+| Parte | Pregunta | Respuesta corta | Sección |
+|---|---|---|---|
+| 1 | ¿Cuál es el texto cifrado resultante? | `4568713083cb…b8778a0d` | §2 |
+| 1 | ¿Qué tamaño tiene el nonce utilizado? | 8 bytes | §3 |
+| 1 | ¿Puedes utilizar un nonce de 12 o 16 bytes? | 12 sí, 16 no | §3 |
+| 1 | ¿Qué implicaciones de seguridad tiene un nonce mayor? | Menos riesgo de repetirlo; la fuerza la da la clave | §4 |
+| 1 | ¿Qué riesgos hay si se reutilizan clave y nonce? | Mismo keystream: con un mensaje se lee el otro | §4 |
+| 1 | ¿Diferencias entre ChaCha20 y ChaCha20-Poly1305? | Poly1305 añade integridad y autenticidad | §4 |
+| 2 | ¿Cuál es el texto plano resultante? | `Este es un mensaje secreto que quiero que descifres` | §5 |
+| Extra | ¿Qué método sincroniza el keystream y cuál es el texto plano? | `seek(8)` → `saje ha sufrido un error en la transmision` | §7 |
+
 ---
 
 ## 1. Implementación del cifrado ChaCha20
