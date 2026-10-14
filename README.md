@@ -2,6 +2,20 @@
 
 **Autor:** Xavier Margalef Riestra · **Módulo:** MF0489 Semana 2 · **Fecha:** 14/10/2026
 
+## Índice
+
+- [Resumen](#resumen)
+- [1. Implementación del cifrado ChaCha20](#1-implementación-del-cifrado-chacha20)
+- [2. Obtención del texto cifrado](#2-obtención-del-texto-cifrado)
+- [3. Análisis del nonce y sus tamaños](#3-análisis-del-nonce-y-sus-tamaños)
+- [4. Implicaciones de seguridad del nonce](#4-implicaciones-de-seguridad-del-nonce)
+- [5. Implementación del descifrado](#5-implementación-del-descifrado)
+- [6. Calidad del código y documentación](#6-calidad-del-código-y-documentación)
+- [7. Sincronización del keystream (extra)](#7-sincronización-del-keystream-extra)
+- [Extra: Diffie-Hellman + XOR (RA2)](#extra-diffie-hellman--xor-ra2)
+- [Relación con arquitectura y GRC](#relación-con-arquitectura-y-grc)
+- [Cómo ejecutarlo](#cómo-ejecutarlo)
+
 ## Resumen
 
 | | |
@@ -26,7 +40,22 @@
 
 ## 1. Implementación del cifrado ChaCha20
 
-`cifrar()` en `src/chacha20_tool.py`: valida el tamaño de clave (32 bytes) y nonce, crea `ChaCha20.new(key, nonce)` y cifra.
+ChaCha20 es un cifrado simétrico de flujo: aplica 20 rondas ARX (suma, rotación y XOR) para generar bloques de 64 bytes de keystream y los combina con el texto mediante XOR.
+
+Parámetros del enunciado:
+
+| Parámetro | Valor |
+|---|---|
+| Texto plano | `Este es un mensaje secreto que quiero cifrar` |
+| Clave (32 bytes) | `b'z\xe8~"\xcayW\x14g\x18+\x1c+\xf9\x80\x06P\x9ej\x888\xb4G\xdf\xe4\xc50,\x8dY\x80\x19'` |
+| Nonce (8 bytes) | `b'\xd6\x7f6\xc7\xe8i*\xa4'` |
+
+`cifrar()` en `src/chacha20_tool.py` valida el tamaño de clave y nonce y cifra:
+
+```python
+cipher = ChaCha20.new(key=clave, nonce=nonce)
+return cipher.encrypt(texto_plano)
+```
 
 | Librería | Decisión | Motivo |
 |---|---|---|
@@ -90,7 +119,14 @@ El enunciado lo hace en las Partes 1 y 2. `src/demo_reutilizacion_nonce.py` recu
 
 **¿Cuál es el texto plano resultante?** `Este es un mensaje secreto que quiero que descifres`
 
-`descifrar()` regenera el mismo keystream con la misma clave y nonce y aplica XOR. Hay que crear un objeto `ChaCha20.new()` nuevo: el usado para cifrar tiene el contador avanzado y PyCryptodome no deja reutilizarlo (`TypeError`).
+`descifrar()` regenera el mismo keystream con la misma clave y nonce y aplica XOR:
+
+```python
+cipher = ChaCha20.new(key=clave, nonce=nonce)
+return cipher.decrypt(texto_cifrado)
+```
+
+Hay que crear un objeto `ChaCha20.new()` nuevo: el usado para cifrar tiene el contador avanzado y PyCryptodome no deja reutilizarlo (`TypeError`).
 
 ## 6. Calidad del código y documentación
 
@@ -106,7 +142,13 @@ El enunciado lo hace en las Partes 1 y 2. `src/demo_reutilizacion_nonce.py` recu
 
 **¿Qué método sincroniza el keystream y cuál es el texto plano?** `seek(8)` → `saje ha sufrido un error en la transmision`
 
-Faltan los 8 primeros bytes, así que el receptor aplica el keystream desde el byte 0 a datos que empiezan en el byte 8. `seek(8)` adelanta el keystream y vuelve a alinearlo con el emisor.
+Faltan los 8 primeros bytes, así que el receptor aplica el keystream desde el byte 0 a datos que empiezan en el byte 8. `seek(8)` adelanta el keystream y vuelve a alinearlo con el emisor:
+
+```python
+cipher = ChaCha20.new(key=clave, nonce=nonce)
+cipher.seek(posicion)   # posicion = BYTES_PERDIDOS = 8
+return cipher.decrypt(texto_cifrado)
+```
 
 ```
 Sin seek(8): b'\xad\xf9\x9f\x0e\xe0dU...'   (basura)
@@ -156,4 +198,4 @@ python src/demo_reutilizacion_nonce.py   # reutilización de nonce
 python -m unittest discover -s tests -v  # 11 pruebas
 ```
 
-Desarrollo completo en [`docs/ANALISIS_TECNICO.md`](docs/ANALISIS_TECNICO.md).
+Desarrollo completo de cada punto y comparativa de configuración segura vs insegura (RA1) en [`docs/ANALISIS_TECNICO.md`](docs/ANALISIS_TECNICO.md).
