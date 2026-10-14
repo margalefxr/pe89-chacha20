@@ -23,6 +23,7 @@ Bitácora de trabajo: qué se hizo, en qué orden y qué problemas aparecieron.
 | 15 | Auditoría de coherencia "lo documentado = lo que hace el código" (lección de un feedback anterior: un `.env` documentado que el código no usaba) | Corregidas 3 incoherencias: ver D-12 |
 | 16 | Relectura completa de todos los archivos | Precisadas afirmaciones (riesgos de reutilizar nonce, límite NIST, AEAD negociado en OpsMatrix), numeración del anexo, nombre de un test y erratas |
 | 17 | README reescrito en primera persona y con un tono más directo, sin cambiar el contenido técnico | Mismas respuestas, referencias y cifras; comprobada la coherencia con el código, los tests y el WORKLOG |
+| 18 | README reorganizado siguiendo los 7 criterios de la rúbrica, una sección por criterio, con un resumen breve en formato de informe técnico | Mismo contenido; DH (RA2) y relación con GRC/arquitectura como ampliación al final |
 
 ## Dificultades encontradas y solución
 

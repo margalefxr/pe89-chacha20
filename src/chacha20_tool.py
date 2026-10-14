@@ -13,7 +13,7 @@ sin clases ni abstracciones que el ejercicio no necesita.
 
 AVISO: la clave y el nonce estan escritos en el codigo porque los fija el
 enunciado. En un entorno real NUNCA se hardcodea una clave (ver README,
-seccion "Riesgos y recomendaciones").
+seccion 6 "Calidad del codigo y documentacion").
 """
 
 from Crypto.Cipher import ChaCha20
