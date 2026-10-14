@@ -5,7 +5,7 @@
 
 ## Contexto
 
-Se reciben un cifrado al que le faltan los 8 primeros bytes. El receptor tiene que alinear su keystream con el del emisor.
+Se recibe un cifrado al que le faltan los 8 primeros bytes. El receptor tiene que alinear su keystream con el del emisor.
 
 ## Opciones
 

@@ -28,11 +28,11 @@ $ python src/diffie_hellman_xor.py
 RA2 - Diffie-Hellman + XOR
 ======================================================================
 Parametros publicos : p = MODP 2048 bits (RFC 3526), g = 2
-Publica de Alice (A): 0xbec6bc5b4db189444f2f72c5450cfe0d...
-Publica de Bob   (B): 0x7448dbce09c0686137f3291dae1cba7d...
+Publica de Alice (A): 0x5855fef98edc7418a6ae39fd14eaa863...
+Publica de Bob   (B): 0x37c2217840842ca7f37aa24892b81566...
 Secreto Alice == secreto Bob: True
 Mensaje             : Este es un mensaje secreto que quiero cifrar
-Cifrado XOR (hex)   : a912aa262f0f979220bf87e8bb2640651d05ffe2f92db2dee9117eb525def9ae0b5f467823e7586988e43740
+Cifrado XOR (hex)   : 3a102fa2414f3621f9acc5abda9bc7749a8d9988faccc6ad2eb7b937ad7ac33e3184cd5e10aa55540daff3fc
 Descifrado por Bob  : Este es un mensaje secreto que quiero cifrar
 Verificacion        : OK
 
@@ -55,11 +55,11 @@ test_parte1_coincide_con_referencia (test_chacha20.TestChaCha20.test_parte1_coin
 test_parte2 (test_chacha20.TestChaCha20.test_parte2) ... ok
 test_ambas_partes_obtienen_el_mismo_secreto (test_diffie_hellman.TestDiffieHellman.test_ambas_partes_obtienen_el_mismo_secreto) ... ok
 test_cifrar_y_descifrar_xor (test_diffie_hellman.TestDiffieHellman.test_cifrar_y_descifrar_xor) ... ok
+test_claves_privadas_distintas_en_cada_ejecucion (test_diffie_hellman.TestDiffieHellman.test_claves_privadas_distintas_en_cada_ejecucion) ... ok
 test_rechaza_publica_trivial (test_diffie_hellman.TestDiffieHellman.test_rechaza_publica_trivial) ... ok
-test_secreto_distinto_en_cada_intercambio (test_diffie_hellman.TestDiffieHellman.test_secreto_distinto_en_cada_intercambio) ... ok
 
 ----------------------------------------------------------------------
-Ran 11 tests in 0.290s
+Ran 11 tests in 0.289s
 
 OK
 

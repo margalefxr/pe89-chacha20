@@ -27,7 +27,7 @@ class TestDiffieHellman(unittest.TestCase):
         plano = xor(cifrado, derivar_keystream(calcular_secreto(b_priv, a_pub), len(cifrado)))
         self.assertEqual(plano, msg)
 
-    def test_secreto_distinto_en_cada_intercambio(self):
+    def test_claves_privadas_distintas_en_cada_ejecucion(self):
         a1, _ = generar_par_claves()
         a2, _ = generar_par_claves()
         self.assertNotEqual(a1, a2)

@@ -13,7 +13,7 @@ sin clases ni abstracciones que el ejercicio no necesita.
 
 AVISO: la clave y el nonce estan escritos en el codigo porque los fija el
 enunciado. En un entorno real NUNCA se hardcodea una clave (ver README,
-seccion "Buenas practicas").
+seccion "Riesgos y recomendaciones").
 """
 
 from Crypto.Cipher import ChaCha20
@@ -99,7 +99,9 @@ if __name__ == "__main__":
     print(f"Texto cifrado (hex)    : {cifrado.hex()}")
 
     # Comprobacion de ida y vuelta: si no vuelve el original, algo esta mal
-    assert descifrar(cifrado, CLAVE, NONCE).decode("utf-8") == TEXTO_PLANO_P1
+    # (if explicito y no assert: los assert se desactivan con python -O)
+    if descifrar(cifrado, CLAVE, NONCE).decode("utf-8") != TEXTO_PLANO_P1:
+        raise SystemExit("ERROR: el descifrado no devuelve el texto original")
     print("Verificacion ida/vuelta: OK")
 
     print()

@@ -19,6 +19,9 @@ Bitácora de trabajo: qué se hizo, en qué orden y qué problemas aparecieron.
 | 11 | Comprobación del primo de RFC 3526: 2048 bits, primo y primo seguro ((p-1)/2 también primo) | OK |
 | 12 | Tests de DH (4 casos) y segunda revisión contra la rúbrica | 11/11 OK; añadida la función del nonce y la tabla de configuración segura vs insegura |
 | 13 | Revisión final: cada pregunta de la Actividad, cada criterio de la rúbrica y cada objetivo de la Introducción; verificación de afirmaciones en el código fuente de la librería; instalación limpia desde cero siguiendo el README | Corregido el contador de XChaCha20; añadidos requisito de Python ≥ 3.10, notas de Windows y versiones en la evidencia |
+| 14 | Reestructuración de la documentación: README como informe ejecutivo de 1-2 páginas para el evaluador; el desarrollo completo pasa a `docs/ANALISIS_TECNICO.md` | Sin pérdida de contenido; todas las respuestas de la rúbrica siguen en el README |
+| 15 | Auditoría de coherencia "lo documentado = lo que hace el código" (lección de un feedback anterior: un `.env` documentado que el código no usaba) | Corregidas 3 incoherencias: ver D-12 |
+| 16 | Relectura completa de todos los archivos | Precisadas afirmaciones (riesgos de reutilizar nonce, límite NIST, AEAD negociado en OpsMatrix), numeración del anexo, nombre de un test y erratas |
 
 ## Dificultades encontradas y solución
 
@@ -35,6 +38,7 @@ Bitácora de trabajo: qué se hizo, en qué orden y qué problemas aparecieron.
 | D-09 | Un primo de ejemplo pequeño (p = 23) "funciona" pero es inseguro | Logaritmo discreto trivial | Usar el grupo 14 estandarizado de RFC 3526 |
 | D-10 | En Windows, PowerShell puede bloquear `Activate.ps1` ("la ejecución de scripts está deshabilitada") | Política de ejecución por defecto de Windows | `Set-ExecutionPolicy -Scope Process RemoteSigned`, solo para esa sesión, sin cambiar la política del sistema |
 | D-11 | Al documentar XChaCha20 se asumió un contador de 64 bits | Hay implementaciones distintas (libsodium usa 64 bits) | Se comprobó en el código fuente de PyCryptodome: usa la variante de 12 bytes con contador de 32 bits (256 GiB por mensaje) |
+| D-12 | Incoherencias entre documentación y código: `.gitignore` declaraba `.env`/`*.key` sin que existieran; se afirmaba que todos los resultados coincidían con una referencia (solo la hay para la Parte 1); las verificaciones usaban `assert`, que se desactiva con `python -O` | Copiar la estructura de "buenas prácticas" sin que el código la respalde | `.gitignore` reducido a lo real; frase corregida; `assert` sustituido por `if` + `SystemExit` |
 
 ## Lecciones aprendidas
 

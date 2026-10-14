@@ -89,7 +89,8 @@ if __name__ == "__main__":
     s_alice = calcular_secreto(a_priv, b_pub)
     s_bob = calcular_secreto(b_priv, a_pub)
     print(f"Secreto Alice == secreto Bob: {s_alice == s_bob}")
-    assert s_alice == s_bob
+    if s_alice != s_bob:
+        raise SystemExit("ERROR: los secretos no coinciden")
 
     # 5-6. Alice cifra, Bob descifra
     mensaje = "Este es un mensaje secreto que quiero cifrar".encode("utf-8")
@@ -101,6 +102,7 @@ if __name__ == "__main__":
     ks_bob = derivar_keystream(s_bob, len(cifrado))
     descifrado = xor(cifrado, ks_bob)
     print(f"Descifrado por Bob  : {descifrado.decode()}")
-    assert descifrado == mensaje
+    if descifrado != mensaje:
+        raise SystemExit("ERROR: el descifrado no devuelve el mensaje original")
     print("Verificacion        : OK")
     print("\nNota: los valores cambian en cada ejecucion (claves privadas aleatorias).")
