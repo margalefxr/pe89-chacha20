@@ -8,8 +8,8 @@
 |---|---|
 | **Objetivo** | Cifrar y descifrar con ChaCha20 (Python + PyCryptodome), analizar el nonce y resincronizar el keystream tras una pérdida de datos |
 | **Alcance** | Partes 1 y 2, extra de sincronización y RA2 (Diffie-Hellman + XOR) |
-| **Resultado** | Todo completado. El cifrado coincide con la referencia del enunciado y 11/11 pruebas OK |
-| **Observación** | Las Partes 1 y 2 reutilizan clave y nonce; se demuestra que permite leer la Parte 2 sin la clave (criterio 4) |
+| **Resultado** | Todo completado. El cifrado coincide con la referencia del enunciado y pasan las 11 pruebas |
+| **Observación** | Las Partes 1 y 2 usan la misma clave y el mismo nonce, y con eso se puede leer la Parte 2 sin la clave. Lo demuestro en el criterio 4 |
 
 | Criterio | Pts | Sección | Código / prueba |
 |---|---|---|---|
@@ -26,9 +26,9 @@
 
 ## 1. Implementación del cifrado ChaCha20
 
-`src/chacha20_tool.py` → `cifrar()` crea un objeto `ChaCha20.new(key, nonce)` con la clave de 32 bytes y el nonce de 8 bytes del enunciado y cifra el texto. Antes valida los tamaños de clave y nonce para fallar con un mensaje claro si no son correctos.
+La función `cifrar()` de `src/chacha20_tool.py` crea el objeto `ChaCha20.new(key, nonce)` con la clave de 32 bytes y el nonce de 8 bytes del enunciado y cifra el texto. Antes de nada valida el tamaño de la clave y del nonce, para que si algo está mal falle al principio con un mensaje claro y no a mitad de proceso.
 
-Se usa PyCryptodome porque lo pide el enunciado, está mantenida y tiene `seek()`. Se descartan `pycrypto` (abandonada, con CVE) e implementar ChaCha20 a mano (ADR-0001).
+He usado PyCryptodome porque es la que pide el enunciado, está mantenida y tiene `seek()`, que hace falta para el extra. Descarto `pycrypto` porque está abandonada desde 2013 y tiene CVE sin corregir, y descarto implementar ChaCha20 a mano porque la regla de oro es no hacerte tu propia criptografía (ADR-0001).
 
 ## 2. Obtención del texto cifrado
 
@@ -38,11 +38,11 @@ Bytes       : b'Ehq0\x83\xcb\x8fo\xab\xed\xd0S\x06\xcc\xbb\xecw\xe9\xec(\x1f\xc5
 Hex         : 4568713083cb8f6fabedd05306ccbbec77e9ec281fc545db88186057c379516ead33ec2e08929f92b8778a0d
 ```
 
-Coincide byte a byte con la referencia del "Código P1". Mide 44 bytes, igual que el texto plano, porque un cifrado de flujo no añade relleno.
+Coincide byte a byte con la referencia del "Código P1". Mide 44 bytes, lo mismo que el texto plano: al ser un cifrado de flujo no añade relleno, a diferencia de un cifrado de bloque como AES-CBC.
 
 ## 3. Análisis del nonce y sus tamaños
 
-**Función:** el nonce hace que la misma clave genere un keystream distinto en cada mensaje. Es público, pero no se puede repetir con la misma clave.
+La función del nonce es que la misma clave genere un keystream distinto en cada mensaje. No es secreto, viaja en claro, pero con la misma clave no se puede repetir nunca.
 
 | Tamaño | ¿PyCryptodome lo acepta? | Variante | Límite por mensaje |
 |---|---|---|---|
@@ -51,24 +51,24 @@ Coincide byte a byte con la referencia del "Código P1". Mide 44 bytes, igual qu
 | 16 bytes | **No** (`ValueError`, probado) | — | — |
 | 24 bytes | Sí | XChaCha20 | 256 GiB |
 
-Con 8 bytes el bloque interno reparte 8 bytes para el contador y 8 para el nonce. Con 12 bytes se gana espacio de nonce a costa de un contador más pequeño.
+La diferencia entre 8 y 12 bytes está en cómo se reparte el bloque interno: con 8 bytes hay 8 para el contador y 8 para el nonce; con 12 bytes se gana espacio de nonce pero el contador se queda en 4 bytes, y de ahí sale el límite de 256 GiB por mensaje.
 
 ## 4. Implicaciones de seguridad del nonce
 
-**Tamaño:** un nonce más grande no hace el cifrado más fuerte (eso lo da la clave de 256 bits); lo que hace es reducir el riesgo de repetirlo.
-- **8 bytes aleatorios:** hacia unos 4.000 millones de mensajes hay un 50 % de probabilidad de repetir uno. Hace falta un contador.
+**Tamaño.** Aquí es fácil pensar que un nonce más grande hace el cifrado más fuerte, pero no: la fuerza la da la clave de 256 bits. Lo que cambia es el riesgo de que el nonce se repita.
+- **8 bytes aleatorios:** hacia unos 4.000 millones de mensajes ya hay un 50 % de probabilidad de repetir uno, así que con 8 bytes hay que tirar de contador.
 - **12 bytes aleatorios:** NIST recomienda no pasar de unos 4.000 millones de mensajes por clave.
-- **24 bytes aleatorios:** se puede generar al azar sin riesgo práctico de repetición.
+- **24 bytes aleatorios:** se puede generar al azar sin riesgo práctico de repetición. Es la opción más cómoda cuando no puedes garantizar un contador (varios servidores, reinicios…).
 
-**Reutilización:** con la misma clave y el mismo nonce se genera el mismo keystream, así que `C1 ⊕ C2 = P1 ⊕ P2` y la clave se anula. Quien conozca un mensaje lee el otro, y las partes iguales se ven a simple vista en los cifrados. Con Poly1305, además, se podrían falsificar mensajes.
+**Reutilización.** Con la misma clave y el mismo nonce sale exactamente el mismo keystream, así que `C1 ⊕ C2 = P1 ⊕ P2` y la clave se anula. Si alguien conoce o adivina uno de los mensajes, lee el otro, y además las partes iguales de los dos mensajes se ven a simple vista en los cifrados. Con Poly1305 todavía es peor, porque se podrían falsificar mensajes.
 
-El propio ejercicio lo hace (Partes 1 y 2). `src/demo_reutilizacion_nonce.py` recupera la Parte 2 sin la clave, solo con los dos cifrados y el texto de la Parte 1. Es el mismo fallo que tenía WEP.
+Lo curioso es que el propio ejercicio cae en esto: las Partes 1 y 2 usan la misma clave y el mismo nonce. Con `src/demo_reutilizacion_nonce.py` recupero la Parte 2 sin usar la clave, solo con los dos cifrados y el texto de la Parte 1. Es el mismo tipo de fallo que tenía WEP.
 
-**ChaCha20 frente a ChaCha20-Poly1305:** ChaCha20 solo da confidencialidad; si se modifica el cifrado, sale basura sin aviso. Poly1305 añade una etiqueta de 16 bytes que da integridad y autenticidad, y rechaza cualquier mensaje alterado. En la práctica (TLS 1.3, SSH, WireGuard) siempre se usa la versión con Poly1305.
+**ChaCha20 frente a ChaCha20-Poly1305.** ChaCha20 solo da confidencialidad: si alguien modifica el cifrado, al descifrar sale basura y nadie se entera. Poly1305 añade una etiqueta de 16 bytes que da integridad y autenticidad, y si el mensaje se ha tocado lo rechaza. Por eso en el mundo real (TLS 1.3, SSH, WireGuard) siempre se usa la versión con Poly1305.
 
 ## 5. Implementación del descifrado
 
-`descifrar()` regenera el mismo keystream con la misma clave y nonce y aplica XOR. Hay que crear un objeto `ChaCha20.new()` nuevo: el usado para cifrar tiene el contador avanzado y PyCryptodome no permite reutilizarlo para descifrar (`TypeError`).
+`descifrar()` regenera el mismo keystream con la misma clave y el mismo nonce y vuelve a aplicar XOR. Un detalle que me encontré: hay que crear un objeto `ChaCha20.new()` nuevo, porque el que has usado para cifrar tiene el contador avanzado y PyCryptodome no te deja reutilizarlo para descifrar (lanza `TypeError`).
 
 ```
 Texto plano resultante: Este es un mensaje secreto que quiero que descifres
@@ -76,15 +76,15 @@ Texto plano resultante: Este es un mensaje secreto que quiero que descifres
 
 ## 6. Calidad del código y documentación
 
-- Tres funciones pequeñas en `src/chacha20_tool.py`, una por parte, documentadas y sin clases innecesarias.
-- 11 pruebas con `unittest` (librería estándar), incluidos casos de error: nonce de 16 bytes, clave inválida y keystream desalineado.
-- Dependencia fijada en `requirements.txt` (`pycryptodome==3.24.1`). Es una librería de terceros, así que es un punto de **cadena de suministro**: fijar la versión evita instalar sin control una versión nueva o un paquete de nombre parecido (typosquatting).
-- La clave está en el código porque es un dato público del enunciado y así el resultado es reproducible. En un caso real iría en un gestor de secretos.
-- Decisiones en `docs/adr/`, pasos y dificultades en `docs/WORKLOG.md` y salida real en `docs/evidencias/`.
+- Tres funciones pequeñas en `src/chacha20_tool.py`, una por parte, documentadas y sin clases que no hacen falta.
+- 11 pruebas con `unittest` (librería estándar, sin dependencias extra), incluidos los casos de error: nonce de 16 bytes, clave inválida y keystream desalineado.
+- La dependencia está fijada en `requirements.txt` (`pycryptodome==3.24.1`). Esto es algo que no se suele tener en cuenta: una librería de terceros es **cadena de suministro**. Si no fijas la versión, instalas lo último que haya en PyPI sin control, y también hay que vigilar los paquetes con nombre parecido (typosquatting).
+- La clave está escrita en el código a propósito: es un dato público del enunciado y así el resultado es reproducible. En un caso real iría en un gestor de secretos, no en el código.
+- Las decisiones están en `docs/adr/`, los pasos y las dificultades en `docs/WORKLOG.md` y la salida real en `docs/evidencias/`.
 
 ## 7. Sincronización del keystream (extra)
 
-Se han perdido los 8 primeros bytes del cifrado. El receptor descifra desde el byte 0 del keystream, pero lo primero que le llega corresponde al byte 8, así que todo sale mal.
+Se han perdido los 8 primeros bytes del cifrado. El receptor empieza a descifrar desde el byte 0 del keystream, pero lo primero que le llega corresponde al byte 8, así que todo sale mal.
 
 `descifrar_desde()` usa **`seek(8)`** para adelantar el keystream esos 8 bytes y volver a cuadrar con el emisor:
 
@@ -93,23 +93,25 @@ Sin seek(8): b'\xad\xf9\x9f\x0e\xe0dU...'  (basura)
 Con seek(8): saje ha sufrido un error en la transmision
 ```
 
-Los 8 bytes perdidos ("Este men") no se pueden recuperar. Se elige `seek()` en lugar de descifrar 8 bytes de relleno y descartarlos porque es el método pensado para esto y deja clara la intención (ADR-0003). Que el error no se detecte demuestra la falta de integridad de ChaCha20: con Poly1305 el mensaje se rechazaría entero.
+Los 8 bytes perdidos ("Este men") no se pueden recuperar. He elegido `seek()` en lugar de descifrar 8 bytes de relleno y tirarlos porque es el método pensado justo para esto y se entiende mejor lo que haces (ADR-0003).
+
+Y aquí se ve otra vez la falta de integridad de ChaCha20: el error de transmisión no se detecta. Con Poly1305 el mensaje se rechazaría entero.
 
 ---
 
 ## Ampliación: Diffie-Hellman + XOR (RA2)
 
-La introducción evalúa el RA2 con un intercambio Diffie-Hellman, aunque no aparece en la rúbrica. `src/diffie_hellman_xor.py` lo implementa con la librería estándar:
-- Grupo de 2048 bits de RFC 3526.
-- Claves privadas generadas con `secrets`.
-- Keystream derivado con SHAKE-256 para no repetir la clave en el XOR, que sería el mismo fallo que reutilizar el nonce.
+La introducción evalúa el RA2 con un intercambio Diffie-Hellman, aunque no sale en la rúbrica. Lo he implementado en `src/diffie_hellman_xor.py` solo con la librería estándar:
+- **Grupo de 2048 bits de RFC 3526**, y no un primo pequeño de ejemplo, que se rompe al momento.
+- **Claves privadas con `secrets`**, y no con `random`, que es predecible.
+- **Keystream derivado con SHAKE-256**, para no repetir la clave en el XOR. Repetirla sería el mismo fallo que reutilizar el nonce.
 
-Las dos partes obtienen la misma clave y el mensaje se cifra y descifra bien (4 pruebas, ADR-0004). Su límite es que, sin autenticar el intercambio, es vulnerable a man-in-the-middle.
+Las dos partes llegan a la misma clave y el mensaje se cifra y descifra bien (4 pruebas, ADR-0004). El límite es que, si el intercambio no está autenticado, es vulnerable a man-in-the-middle.
 
 ## Relación con otros temas
 
-- **Arquitectura:** Diffie-Hellman acuerda la clave y ChaCha20-Poly1305 cifra; es el mismo esquema que el TLS 1.3 de Nginx y el SSH de mi proyecto OpsMatrix Lab, donde las claves Ed25519 autentican el intercambio.
-- **GRC:** los fallos vistos son de gestión, no del algoritmo (nonces, claves, dependencias). Encajan con:
+- **Arquitectura:** si juntas las piezas tienes un canal seguro de verdad: Diffie-Hellman acuerda la clave y ChaCha20-Poly1305 cifra. Es el mismo esquema que el TLS 1.3 de Nginx y el SSH de mi proyecto OpsMatrix Lab, donde las claves Ed25519 son las que autentican el intercambio y cubren el man-in-the-middle.
+- **GRC:** todos los fallos que han salido son de gestión, no del algoritmo: nonces repetidos, claves en el código y dependencias de terceros sin control. Encajan con:
   - ISO 27001 A.8.24 (criptografía) y A.5.21 (cadena de suministro).
   - ENS mp.com.2 y mp.com.3.
   - NIST SP 800-57.
@@ -128,4 +130,4 @@ python src/demo_reutilizacion_nonce.py   # demostración de la reutilización de
 python -m unittest discover -s tests -v  # 11 pruebas
 ```
 
-Desarrollo completo de cada punto en [`docs/ANALISIS_TECNICO.md`](docs/ANALISIS_TECNICO.md).
+Si quieres el desarrollo completo de cada punto, está en [`docs/ANALISIS_TECNICO.md`](docs/ANALISIS_TECNICO.md).
